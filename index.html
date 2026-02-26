@@ -5,12 +5,25 @@
 <title>Pug-Man</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#04030a;display:flex;justify-content:center;align-items:center;height:100vh;font-family:'Segoe UI',sans-serif;overflow:hidden}
-canvas{outline:none}
+body{background:#04030a;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;height:100dvh;font-family:'Segoe UI',sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{outline:none;touch-action:none}
+#dpad{display:none;position:fixed;bottom:15px;left:50%;transform:translateX(-50%);width:180px;height:180px;z-index:10}
+.dbtn{position:absolute;width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;color:rgba(255,255,255,0.6);-webkit-tap-highlight-color:transparent;cursor:pointer}
+.dbtn:active,.dbtn.held{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.4)}
+#du{top:0;left:50%;transform:translateX(-50%)}
+#dd{bottom:0;left:50%;transform:translateX(-50%)}
+#dl{top:50%;left:0;transform:translateY(-50%)}
+#dr{top:50%;right:0;transform:translateY(-50%)}
 </style>
 </head>
 <body>
 <canvas id="g" tabindex="1"></canvas>
+<div id="dpad">
+  <div class="dbtn" id="du">▲</div>
+  <div class="dbtn" id="dd">▼</div>
+  <div class="dbtn" id="dl">◀</div>
+  <div class="dbtn" id="dr">▶</div>
+</div>
 <script>
 const C=document.getElementById('g'),X=C.getContext('2d');
 C.focus();
@@ -18,12 +31,17 @@ C.focus();
 // Dynamic sizing - fill viewport
 const W=13,H=15,HUD=62;
 let T,OX,OY;
+// Mobile detection and D-pad
+let isMobile='ontouchstart'in window||navigator.maxTouchPoints>0;
+let dpad=document.getElementById('dpad');
+if(isMobile)dpad.style.display='block';
+
 function resize(){
-  let maxW=window.innerWidth-10,maxH=window.innerHeight-10;
+  let maxW=window.innerWidth-10,maxH=window.innerHeight-(isMobile?210:10);
   let tFromW=Math.floor((maxW-24)/W);
   let tFromH=Math.floor((maxH-HUD-24)/H);
   T=Math.min(tFromW,tFromH);
-  if(T<30)T=30;
+  if(T<20)T=20;
   C.width=W*T+24;C.height=H*T+HUD+24;
   OX=12;OY=HUD+12;
 }
@@ -488,12 +506,20 @@ function drawMenu(){
   X.fillStyle='#fff';X.font=`bold ${Math.round(T*0.45)}px Segoe UI,sans-serif`;
   X.fillText('START GAME',C.width/2,btnY+bh/2+pulse);
   // Instructions
+  let isMob=isMobile;
   X.fillStyle='#667799';X.font=`${Math.round(T*0.3)}px Segoe UI,sans-serif`;
   let iy=C.height*0.7;
-  X.fillText('🎮  W A S D  or  Arrow Keys',C.width/2,iy);
-  X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
-  X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
-  X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
+  if(isMob){
+    X.fillText('👆  Use D-pad to move',C.width/2,iy);
+    X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
+    X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
+    X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
+  } else {
+    X.fillText('🎮  W A S D  or  Arrow Keys',C.width/2,iy);
+    X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
+    X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
+    X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
+  }
   let a=Math.sin(tick*0.05)*0.3+0.4;
   X.fillStyle=`rgba(255,255,255,${a})`;X.font=`${Math.round(T*0.32)}px Segoe UI,sans-serif`;
   X.fillText('Press SPACE or click',C.width/2,C.height*0.93);
@@ -546,6 +572,40 @@ C.addEventListener('click',()=>{
   else if(state==='levelComplete'){level++;initLevel();state='playing';}
   else if(state==='gameOver'||state==='victory')startGame();
 });
+// D-pad controls
+let dpadMap={du:{key:'w'},dd:{key:'s'},dl:{key:'a'},dr:{key:'d'}};
+let activeTouches={};
+
+function handleDpadStart(id){
+  let m=dpadMap[id];if(!m)return;
+  keysDown={};keysDown[m.key]=true;
+  document.getElementById(id).classList.add('held');
+  // Tap actions for menu/overlays
+  if(state==='menu'){startGame();return;}
+  if(state==='levelComplete'){level++;initLevel();state='playing';return;}
+  if(state==='gameOver'||state==='victory'){startGame();return;}
+}
+function handleDpadEnd(id){
+  let m=dpadMap[id];if(!m)return;
+  delete keysDown[m.key];
+  document.getElementById(id).classList.remove('held');
+}
+
+Object.keys(dpadMap).forEach(id=>{
+  let el=document.getElementById(id);
+  el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();activeTouches[e.touches[0].identifier]=id;handleDpadStart(id);},{passive:false});
+  el.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();handleDpadEnd(id);},{passive:false});
+  el.addEventListener('touchcancel',e=>{e.preventDefault();handleDpadEnd(id);},{passive:false});
+});
+
+// Canvas tap for menu/overlays on mobile
+C.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(state==='menu'){startGame();return;}
+  if(state==='levelComplete'){level++;initLevel();state='playing';return;}
+  if(state==='gameOver'||state==='victory'){startGame();return;}
+},{passive:false});
+
 setInterval(update,1000/60);render();C.focus();
 </script>
 </body>
