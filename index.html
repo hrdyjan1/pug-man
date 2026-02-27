@@ -15,7 +15,7 @@ canvas{outline:none;touch-action:none}
 const C=document.getElementById('g'),X=C.getContext('2d');
 C.focus();
 
-const W=13,H=15,HUD=62;
+const W=13,H=15,HUD=90;
 let T,OX,OY;
 let isMobile='ontouchstart'in window||navigator.maxTouchPoints>0;
 
@@ -30,8 +30,8 @@ function resize(){
   if(T<20)T=20;
   C.width=W*T+24;C.height=H*T+HUD+24;
   OX=12;OY=HUD+12;
-  joy.baseR=Math.max(50,Math.min(70,T*1.5));
-  joy.knobR=joy.baseR*0.45;
+  joy.baseR=Math.max(40,Math.min(55,T*1.2));
+  joy.knobR=joy.baseR*0.4;
 }
 resize();
 window.addEventListener('resize',resize);
@@ -387,17 +387,19 @@ function drawHUD(){
   X.globalAlpha=0.7;X.fillStyle=lg;X.fillRect(0,HUD-2,C.width,2);
   X.globalAlpha=0.15;X.fillStyle=lg;X.fillRect(0,HUD-8,C.width,8);
   X.globalAlpha=1;
-  X.fillStyle='#ffd700';X.font=`bold ${Math.round(T*0.38)}px Segoe UI,sans-serif`;X.textAlign='left';X.textBaseline='middle';
-  X.shadowColor='#ffd700';X.shadowBlur=8;X.fillText(`${score}`,T*1.3,HUD/2+2);X.shadowBlur=0;
-  X.fillStyle='#667';X.font=`${Math.round(T*0.24)}px Segoe UI,sans-serif`;X.fillText('SCORE',T*1.3,HUD/2-T*0.35);
-  X.fillStyle=th.neon;X.textAlign='center';X.font=`bold ${Math.round(T*0.34)}px Segoe UI,sans-serif`;
-  X.fillText(th.name,C.width/2,HUD/2-T*0.15);
+  let row1=HUD*0.32,row2=HUD*0.62,row3=HUD*0.88;
+  X.fillStyle='#667';X.font=`${Math.round(T*0.24)}px Segoe UI,sans-serif`;X.textAlign='left';X.textBaseline='middle';
+  X.fillText('SCORE',T*0.5,row1);
+  X.fillStyle='#ffd700';X.font=`bold ${Math.round(T*0.42)}px Segoe UI,sans-serif`;
+  X.shadowColor='#ffd700';X.shadowBlur=8;X.fillText(`${score}`,T*0.5,row2);X.shadowBlur=0;
+  X.fillStyle=th.neon;X.textAlign='center';X.font=`bold ${Math.round(T*0.36)}px Segoe UI,sans-serif`;
+  X.fillText(th.name,C.width/2,row1);
   X.fillStyle='#556';X.font=`${Math.round(T*0.24)}px Segoe UI,sans-serif`;
-  X.fillText(`LEVEL ${level}/5  ·  ${th.eCnt} 😺`,C.width/2,HUD/2+T*0.22);
+  X.fillText(`LEVEL ${level}/5  ·  ${th.eCnt} 😺`,C.width/2,row2);
   X.textAlign='right';
-  let ls=T*0.2;
+  let ls=T*0.22;
   for(let i=0;i<lives;i++){
-    let lx=C.width-T*0.5-i*T*0.65,ly=HUD/2;
+    let lx=C.width-T*0.5-i*T*0.7,ly=row1+(row2-row1)*0.3;
     X.fillStyle='#d4a854';X.beginPath();X.arc(lx,ly,ls,0,Math.PI*2);X.fill();
     X.fillStyle='#b8862e';X.beginPath();X.arc(lx,ly+ls*0.15,ls*0.6,0,Math.PI*2);X.fill();
     X.fillStyle='#1a0e06';let ds=ls*0.35;
@@ -406,12 +408,12 @@ function drawHUD(){
     X.beginPath();X.arc(lx,ly+ls*0.1,ds*0.6,0,Math.PI*2);X.fill();
   }
   if(powerMode){
-    let barW=T*2.5,bx=C.width/2-barW/2,by=HUD-T*0.2;
-    X.fillStyle='rgba(255,107,53,0.15)';X.beginPath();X.roundRect(bx,by,barW,T*0.08,4);X.fill();
+    let barW=C.width*0.55,bx=C.width/2-barW/2,by=row3-3;
+    X.fillStyle='rgba(255,107,53,0.15)';X.beginPath();X.roundRect(bx,by,barW,6,3);X.fill();
     let fill=(powerTimer/400)*barW;
     let pg=X.createLinearGradient(bx,0,bx+fill,0);pg.addColorStop(0,th.neonPow);pg.addColorStop(1,'#ffcc55');
     X.fillStyle=pg;X.shadowColor=th.neonPow;X.shadowBlur=8;
-    X.beginPath();X.roundRect(bx,by,fill,T*0.08,4);X.fill();X.shadowBlur=0;
+    X.beginPath();X.roundRect(bx,by,fill,6,3);X.fill();X.shadowBlur=0;
   }
 }
 
@@ -499,8 +501,8 @@ function drawMenu(){
   let btng=X.createLinearGradient(C.width/2-bw/2,btnY,C.width/2+bw/2,btnY+bh);
   btng.addColorStop(0,'#ff9f00');btng.addColorStop(1,'#ff5500');
   X.fillStyle=btng;X.beginPath();X.roundRect(C.width/2-bw/2,btnY+pulse,bw,bh,bh/2);X.fill();X.shadowBlur=0;
-  X.fillStyle='rgba(255,255,255,0.12)';
-  X.beginPath();X.roundRect(C.width/2-bw/2+2,btnY+pulse+2,bw-4,bh/2,{upperLeft:bh/2,upperRight:bh/2,lowerLeft:0,lowerRight:0});X.fill();
+  X.save();X.beginPath();X.roundRect(C.width/2-bw/2,btnY+pulse,bw,bh,bh/2);X.clip();
+  X.fillStyle='rgba(255,255,255,0.10)';X.fillRect(C.width/2-bw/2,btnY+pulse,bw,bh*0.45);X.restore();
   X.fillStyle='#fff';X.font=`bold ${Math.round(T*0.45)}px Segoe UI,sans-serif`;
   X.fillText('START GAME',C.width/2,btnY+bh/2+pulse);
   X.fillStyle='#667799';X.font=`${Math.round(T*0.3)}px Segoe UI,sans-serif`;
@@ -574,7 +576,7 @@ C.addEventListener('click',()=>{
 /* ---- Touch: Virtual Joystick ---- */
 function joyDir(dx,dy){
   let dist=Math.hypot(dx,dy);
-  let deadZone=joy.baseR*0.22;
+  let deadZone=joy.baseR*0.12;
   if(dist<deadZone){joy.dir=null;return;}
   if(Math.abs(dx)>Math.abs(dy)){joy.dir=dx>0?'right':'left';}
   else{joy.dir=dy>0?'down':'up';}
