@@ -7,23 +7,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#04030a;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;height:100dvh;font-family:'Segoe UI',sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
 canvas{outline:none;touch-action:none}
-#dpad{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:300px;height:300px;z-index:10}
-.dbtn{position:absolute;width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,0.10);border:2.5px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:32px;color:rgba(255,255,255,0.7);-webkit-tap-highlight-color:transparent;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.dbtn:active,.dbtn.held{background:rgba(255,255,255,0.30);border-color:rgba(255,255,255,0.5);transform-origin:center;scale:0.93}
-#du{top:0;left:50%;transform:translateX(-50%)}
-#dd{bottom:0;left:50%;transform:translateX(-50%)}
-#dl{top:50%;left:0;transform:translateY(-50%)}
-#dr{top:50%;right:0;transform:translateY(-50%)}
 </style>
 </head>
 <body>
 <canvas id="g" tabindex="1"></canvas>
-<div id="dpad">
-  <div class="dbtn" id="du">▲</div>
-  <div class="dbtn" id="dd">▼</div>
-  <div class="dbtn" id="dl">◀</div>
-  <div class="dbtn" id="dr">▶</div>
-</div>
 <script>
 const C=document.getElementById('g'),X=C.getContext('2d');
 C.focus();
@@ -31,17 +18,20 @@ C.focus();
 const W=13,H=15,HUD=62;
 let T,OX,OY;
 let isMobile='ontouchstart'in window||navigator.maxTouchPoints>0;
-let dpad=document.getElementById('dpad');
-if(isMobile)dpad.style.display='block';
+
+/* Virtual Joystick State */
+let joy={active:false,id:null,ox:0,oy:0,cx:0,cy:0,dx:0,dy:0,dir:null,baseR:60,knobR:30,opacity:0};
 
 function resize(){
-  let maxW=window.innerWidth-10,maxH=window.innerHeight-(isMobile?340:10);
+  let maxW=window.innerWidth-10,maxH=window.innerHeight-(isMobile?160:10);
   let tFromW=Math.floor((maxW-24)/W);
   let tFromH=Math.floor((maxH-HUD-24)/H);
   T=Math.min(tFromW,tFromH);
   if(T<20)T=20;
   C.width=W*T+24;C.height=H*T+HUD+24;
   OX=12;OY=HUD+12;
+  joy.baseR=Math.max(50,Math.min(70,T*1.5));
+  joy.knobR=joy.baseR*0.45;
 }
 resize();
 window.addEventListener('resize',resize);
@@ -143,6 +133,13 @@ function ePos(e){
 function stepE(e,spd){if(e.prog<1){e.prog+=spd/60;if(e.prog>=1){e.prog=1;e.cx=e.tx;e.cy=e.ty;e.tx=e.cx;e.ty=e.cy;}}}
 function startMv(e,dx,dy){let nx=e.cx+dx,ny=e.cy+dy;if(canWalk(nx,ny)){e.tx=nx;e.ty=ny;e.dx=dx;e.dy=dy;e.prog=0;return true;}return false;}
 function getDir(){
+  /* Joystick direction takes priority on mobile */
+  if(joy.dir){
+    if(joy.dir==='up')return{x:0,y:-1};
+    if(joy.dir==='down')return{x:0,y:1};
+    if(joy.dir==='left')return{x:-1,y:0};
+    if(joy.dir==='right')return{x:1,y:0};
+  }
   if(keysDown['w']||keysDown['arrowup'])return{x:0,y:-1};
   if(keysDown['s']||keysDown['arrowdown'])return{x:0,y:1};
   if(keysDown['a']||keysDown['arrowleft'])return{x:-1,y:0};
@@ -211,7 +208,6 @@ function drawMaze(){
   let th=TH();
   X.shadowColor=th.mazeGlow;X.shadowBlur=40;X.fillStyle=th.bg2+'dd';
   X.beginPath();X.roundRect(OX-8,OY-8,W*T+16,H*T+16,12);X.fill();X.shadowBlur=0;
-
   for(let r=0;r<H;r++)for(let c=0;c<W;c++){
     if(grid[r][c]===1){
       let x=c*T+OX,y=r*T+OY;
@@ -221,7 +217,6 @@ function drawMaze(){
       X.beginPath();X.roundRect(x+1,y+1,T-2,T-2,3);X.fill();
       X.fillStyle='rgba(255,255,255,0.04)';
       X.fillRect(x+2,y+2,T-4,(T-4)/2);
-
       let neon=powerMode?th.neonPow:th.neon;
       let nA=powerMode?0.9:0.65;
       X.lineWidth=T>40?3:2;X.strokeStyle=neon;X.globalAlpha=nA;X.lineCap='round';
@@ -241,14 +236,9 @@ function drawMaze(){
       X.globalAlpha=1;
     }
   }
-
   X.globalAlpha=0.03;X.fillStyle=TH().neon;
   for(let r=0;r<H;r++)for(let c=0;c<W;c++){
-    if(grid[r][c]!==1){
-      let x=c*T+OX+T/2,y=r*T+OY+T/2;
-      X.beginPath();X.arc(x,y,2,0,Math.PI*2);X.fill();
-    }
-  }
+    if(grid[r][c]!==1){let x=c*T+OX+T/2,y=r*T+OY+T/2;X.beginPath();X.arc(x,y,2,0,Math.PI*2);X.fill();}}
   X.globalAlpha=1;
 }
 
@@ -302,8 +292,7 @@ function drawPug(cx,cy,dx,dy,mouth,big){
   X.fillStyle=mg;X.beginPath();X.arc(cx,cy+r*0.2,r*0.55,0,Math.PI*2);X.fill();
   X.strokeStyle='rgba(140,100,25,0.25)';X.lineWidth=r*0.03;
   for(let i=-1;i<=1;i++){X.beginPath();X.arc(cx,cy-r*0.05+i*r*0.11,r*0.45,Math.PI*0.75,Math.PI*0.25,true);X.stroke();}
-  X.fillStyle='#8B6914';
-  let es=r*0.16;
+  X.fillStyle='#8B6914';let es=r*0.16;
   X.beginPath();X.ellipse(cx-r*0.78,cy-r*0.3,es*0.85,es*1.6,-0.5,0,Math.PI*2);X.fill();
   X.beginPath();X.ellipse(cx+r*0.78,cy-r*0.3,es*0.85,es*1.6,0.5,0,Math.PI*2);X.fill();
   X.fillStyle='#6B4F0E';
@@ -432,6 +421,58 @@ function drawVignette(){
   X.fillStyle=vg;X.fillRect(0,0,C.width,C.height);
 }
 
+/* ---- Virtual Joystick Drawing ---- */
+function drawJoystick(){
+  if(!isMobile||state!=='playing')return;
+  let tgtA=joy.active?0.85:0.15;
+  joy.opacity+=(tgtA-joy.opacity)*0.2;
+  if(joy.opacity<0.01)return;
+  let th=TH(),neon=powerMode?th.neonPow:th.neon;
+  let bR=joy.baseR,kR=joy.knobR;
+  let bx,by;
+  if(joy.active){bx=joy.ox;by=joy.oy;}
+  else{bx=C.width/2;by=C.height-bR-30;}
+  /* Base ring */
+  X.globalAlpha=joy.opacity*0.25;
+  X.strokeStyle=neon;X.lineWidth=2;
+  X.beginPath();X.arc(bx,by,bR,0,Math.PI*2);X.stroke();
+  /* Direction hints */
+  X.globalAlpha=joy.opacity*0.08;
+  X.fillStyle=neon;
+  let arrows=[[0,-1],[0,1],[-1,0],[1,0]];
+  arrows.forEach(([ax,ay])=>{
+    let hx=bx+ax*bR*0.6,hy=by+ay*bR*0.6;
+    X.beginPath();X.arc(hx,hy,6,0,Math.PI*2);X.fill();
+  });
+  /* Crosshair lines */
+  X.globalAlpha=joy.opacity*0.06;X.strokeStyle=neon;X.lineWidth=1;
+  X.beginPath();X.moveTo(bx,by-bR*0.3);X.lineTo(bx,by+bR*0.3);X.stroke();
+  X.beginPath();X.moveTo(bx-bR*0.3,by);X.lineTo(bx+bR*0.3,by);X.stroke();
+  /* Knob */
+  let kx=bx,ky=by;
+  if(joy.active){
+    let jdx=joy.cx-joy.ox,jdy=joy.cy-joy.oy;
+    let dist=Math.hypot(jdx,jdy);
+    let maxD=bR-kR*0.5;
+    if(dist>maxD){jdx=jdx/dist*maxD;jdy=jdy/dist*maxD;}
+    kx=bx+jdx;ky=by+jdy;
+  }
+  let kg=X.createRadialGradient(kx-kR*0.2,ky-kR*0.2,kR*0.1,kx,ky,kR);
+  kg.addColorStop(0,'rgba(255,255,255,0.35)');kg.addColorStop(1,'rgba(255,255,255,0.08)');
+  X.globalAlpha=joy.opacity;
+  X.fillStyle=kg;X.beginPath();X.arc(kx,ky,kR,0,Math.PI*2);X.fill();
+  X.strokeStyle=neon;X.lineWidth=1.5;X.globalAlpha=joy.opacity*0.5;
+  X.beginPath();X.arc(kx,ky,kR,0,Math.PI*2);X.stroke();
+  /* Active direction indicator */
+  if(joy.active&&joy.dir){
+    let dd={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[joy.dir];
+    X.globalAlpha=joy.opacity*0.3;X.fillStyle=neon;
+    X.beginPath();X.arc(bx+dd[0]*bR*0.6,by+dd[1]*bR*0.6,8,0,Math.PI*2);X.fill();
+    X.shadowColor=neon;X.shadowBlur=12;X.fill();X.shadowBlur=0;
+  }
+  X.globalAlpha=1;
+}
+
 function drawMenu(){
   let bg=X.createRadialGradient(C.width/2,C.height*0.35,30,C.width/2,C.height*0.35,C.width);
   bg.addColorStop(0,'#1a1235');bg.addColorStop(0.5,'#0d0a1a');bg.addColorStop(1,'#060410');
@@ -462,23 +503,19 @@ function drawMenu(){
   X.beginPath();X.roundRect(C.width/2-bw/2+2,btnY+pulse+2,bw-4,bh/2,{upperLeft:bh/2,upperRight:bh/2,lowerLeft:0,lowerRight:0});X.fill();
   X.fillStyle='#fff';X.font=`bold ${Math.round(T*0.45)}px Segoe UI,sans-serif`;
   X.fillText('START GAME',C.width/2,btnY+bh/2+pulse);
-  let isMob=isMobile;
   X.fillStyle='#667799';X.font=`${Math.round(T*0.3)}px Segoe UI,sans-serif`;
   let iy=C.height*0.7;
-  if(isMob){
-    X.fillText('👆  Use D-pad to move',C.width/2,iy);
-    X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
-    X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
-    X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
+  if(isMobile){
+    X.fillText('👆  Touch & drag to move',C.width/2,iy);
   } else {
     X.fillText('🎮  W A S D  or  Arrow Keys',C.width/2,iy);
-    X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
-    X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
-    X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
   }
+  X.fillText('🍖  Collect all treats to win',C.width/2,iy+T*0.7);
+  X.fillText('🦴  Power bones let you chase cats',C.width/2,iy+T*1.4);
+  X.fillText('😺  Avoid the cats!',C.width/2,iy+T*2.1);
   let a=Math.sin(tick*0.05)*0.3+0.4;
   X.fillStyle=`rgba(255,255,255,${a})`;X.font=`${Math.round(T*0.32)}px Segoe UI,sans-serif`;
-  X.fillText('Press SPACE or click',C.width/2,C.height*0.93);
+  X.fillText(isMobile?'Tap to start':'Press SPACE or click',C.width/2,C.height*0.93);
   drawVignette();
 }
 
@@ -493,7 +530,7 @@ function drawOverlay(title,sub,color,extra){
   if(extra){X.fillStyle='#ffd700';X.font=`bold ${Math.round(T*0.42)}px Segoe UI,sans-serif`;X.fillText(extra,C.width/2,C.height/2+T);}
   let a=Math.sin(tick*0.08)*0.3+0.5;
   X.fillStyle=`rgba(255,255,255,${a})`;X.font=`${Math.round(T*0.32)}px Segoe UI,sans-serif`;
-  X.fillText('Press SPACE to continue',C.width/2,C.height/2+T*2);
+  X.fillText(isMobile?'Tap to continue':'Press SPACE to continue',C.width/2,C.height/2+T*2);
 }
 
 function render(){
@@ -505,6 +542,7 @@ function render(){
     let pp=ePos(player);drawPug(pp.x,pp.y,player.dx,player.dy,player.mouth,false);
     enemies.forEach(e=>{let ep=ePos(e);drawCat(ep.x,ep.y,e.color,e.scared);});
     drawParticlesAll();X.restore();
+    drawJoystick();
     drawVignette();
     if(state==='levelComplete')drawOverlay('Level Complete! 🎉',`Score: ${score}`,'#ffd700');
     if(state==='gameOver')drawOverlay('Game Over 😿',`Final Score: ${score}`,'#ff4d6a');
@@ -514,6 +552,8 @@ function render(){
 }
 
 function startGame(){score=0;lives=3;level=1;initLevel();state='playing';}
+
+/* ---- Keyboard ---- */
 document.addEventListener('keydown',e=>{
   let k=e.key.toLowerCase();
   if(state==='menu'&&(k===' '||k==='enter')){startGame();e.preventDefault();return;}
@@ -522,42 +562,61 @@ document.addEventListener('keydown',e=>{
   if(state==='playing'&&['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){keysDown[k]=true;e.preventDefault();}
 });
 document.addEventListener('keyup',e=>{delete keysDown[e.key.toLowerCase()];});
+
+/* ---- Mouse click (desktop) ---- */
 C.addEventListener('click',()=>{
   C.focus();
   if(state==='menu')startGame();
   else if(state==='levelComplete'){level++;initLevel();state='playing';}
   else if(state==='gameOver'||state==='victory')startGame();
 });
-let dpadMap={du:{key:'w'},dd:{key:'s'},dl:{key:'a'},dr:{key:'d'}};
-let activeTouches={};
 
-function handleDpadStart(id){
-  let m=dpadMap[id];if(!m)return;
-  keysDown={};keysDown[m.key]=true;
-  document.getElementById(id).classList.add('held');
-  if(state==='menu'){startGame();return;}
-  if(state==='levelComplete'){level++;initLevel();state='playing';return;}
-  if(state==='gameOver'||state==='victory'){startGame();return;}
+/* ---- Touch: Virtual Joystick ---- */
+function joyDir(dx,dy){
+  let dist=Math.hypot(dx,dy);
+  let deadZone=joy.baseR*0.22;
+  if(dist<deadZone){joy.dir=null;return;}
+  if(Math.abs(dx)>Math.abs(dy)){joy.dir=dx>0?'right':'left';}
+  else{joy.dir=dy>0?'down':'up';}
 }
-function handleDpadEnd(id){
-  let m=dpadMap[id];if(!m)return;
-  delete keysDown[m.key];
-  document.getElementById(id).classList.remove('held');
-}
-
-Object.keys(dpadMap).forEach(id=>{
-  let el=document.getElementById(id);
-  el.addEventListener('touchstart',e=>{e.preventDefault();e.stopPropagation();activeTouches[e.touches[0].identifier]=id;handleDpadStart(id);},{passive:false});
-  el.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();handleDpadEnd(id);},{passive:false});
-  el.addEventListener('touchcancel',e=>{e.preventDefault();handleDpadEnd(id);},{passive:false});
-});
 
 C.addEventListener('touchstart',e=>{
   e.preventDefault();
   if(state==='menu'){startGame();return;}
   if(state==='levelComplete'){level++;initLevel();state='playing';return;}
   if(state==='gameOver'||state==='victory'){startGame();return;}
+  if(state==='playing'&&!joy.active){
+    let t=e.changedTouches[0];
+    let rect=C.getBoundingClientRect();
+    let sx=(t.clientX-rect.left)*(C.width/rect.width);
+    let sy=(t.clientY-rect.top)*(C.height/rect.height);
+    joy.active=true;joy.id=t.identifier;
+    joy.ox=sx;joy.oy=sy;joy.cx=sx;joy.cy=sy;
+    joyDir(0,0);
+  }
 },{passive:false});
+
+C.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  for(let t of e.changedTouches){
+    if(t.identifier===joy.id&&joy.active){
+      let rect=C.getBoundingClientRect();
+      joy.cx=(t.clientX-rect.left)*(C.width/rect.width);
+      joy.cy=(t.clientY-rect.top)*(C.height/rect.height);
+      joyDir(joy.cx-joy.ox,joy.cy-joy.oy);
+    }
+  }
+},{passive:false});
+
+function joyEnd(e){
+  for(let t of e.changedTouches){
+    if(t.identifier===joy.id){
+      joy.active=false;joy.id=null;joy.dir=null;joy.dx=0;joy.dy=0;
+    }
+  }
+}
+C.addEventListener('touchend',e=>{e.preventDefault();joyEnd(e);},{passive:false});
+C.addEventListener('touchcancel',e=>{e.preventDefault();joyEnd(e);},{passive:false});
 
 setInterval(update,1000/60);render();C.focus();
 </script>
