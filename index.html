@@ -7,9 +7,9 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#04030a;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;height:100dvh;font-family:'Segoe UI',sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
 canvas{outline:none;touch-action:none}
-#dpad{display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);width:240px;height:240px;z-index:10}
-.dbtn{position:absolute;width:76px;height:76px;border-radius:20px;background:rgba(255,255,255,0.12);border:2px solid rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(255,255,255,0.65);-webkit-tap-highlight-color:transparent;cursor:pointer}
-.dbtn:active,.dbtn.held{background:rgba(255,255,255,0.28);border-color:rgba(255,255,255,0.45)}
+#dpad{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:300px;height:300px;z-index:10}
+.dbtn{position:absolute;width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,0.10);border:2.5px solid rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;font-size:32px;color:rgba(255,255,255,0.7);-webkit-tap-highlight-color:transparent;cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.dbtn:active,.dbtn.held{background:rgba(255,255,255,0.30);border-color:rgba(255,255,255,0.5);transform-origin:center;scale:0.93}
 #du{top:0;left:50%;transform:translateX(-50%)}
 #dd{bottom:0;left:50%;transform:translateX(-50%)}
 #dl{top:50%;left:0;transform:translateY(-50%)}
@@ -35,7 +35,7 @@ let dpad=document.getElementById('dpad');
 if(isMobile)dpad.style.display='block';
 
 function resize(){
-  let maxW=window.innerWidth-10,maxH=window.innerHeight-(isMobile?280:10);
+  let maxW=window.innerWidth-10,maxH=window.innerHeight-(isMobile?340:10);
   let tFromW=Math.floor((maxW-24)/W);
   let tFromH=Math.floor((maxH-HUD-24)/H);
   T=Math.min(tFromW,tFromH);
